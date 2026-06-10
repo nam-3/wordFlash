@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WordFlash — 단어 테스트</title>
+  <meta name="description" content="엑셀 단어장을 붙여넣거나 파일로 올려 영어·중국어 단어를 플래시카드로 학습하는 웹 앱" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Noto+Sans+SC:wght@400;500;700&display=swap"
+    rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <div id="app">
+
+    <!-- ================================================
+       VIEW : INPUT
+  ================================================= -->
+    <div id="view-input" class="view active">
+      <header class="app-header">
+        <div class="logo">
+          <span class="logo-icon">⚡</span>
+          <span class="logo-text">WordFlash</span>
+        </div>
+        <p class="header-sub">엑셀 단어장을 붙여넣거나 파일로 올려 테스트를 시작하세요</p>
+      </header>
+
+      <main class="input-main">
+
+        <!-- Tab bar -->
+        <div class="tab-bar">
+          <button class="tab-btn active" id="tab-sheet">📋 스프레드시트 입력</button>
+          <button class="tab-btn" id="tab-upload">📁 파일 업로드</button>
+        </div>
+
+        <!-- ── Panel: Spreadsheet ── -->
+        <div id="panel-sheet" class="tab-panel active">
+          <div class="sheet-toolbar">
+            <div class="mode-toggle-group">
+              <button class="mode-toggle-btn active" id="btn-mode-english" data-mode="english">🇺🇸 영어</button>
+              <button class="mode-toggle-btn" id="btn-mode-chinese" data-mode="chinese">🇨🇳 중국어</button>
+              <button class="mode-toggle-btn" id="btn-mode-japanese" data-mode="japanese">🇯🇵 일본어</button>
+            </div>
+            <div class="sheet-actions">
+              <button class="btn-ghost btn-sm" id="btn-add-row">+ 행 추가</button>
+              <button class="btn-ghost btn-sm" id="btn-clear-sheet">초기화</button>
+            </div>
+          </div>
+
+          <div class="sheet-hint">
+            💡 다른 엑셀에서 셀 복사(Ctrl+C) 후 아래 표에 붙여넣기(Ctrl+V)<br />
+            <strong>영어</strong> 2열(단어|뜻) &nbsp;•&nbsp;
+            <strong>중국어</strong> 3열(한자|병음|뜻) &nbsp;•&nbsp;
+            <strong>일본어</strong> 4열(한자/단어|히라가나|가타카나|뜻)
+          </div>
+
+          <div class="sheet-wrapper" id="sheet-wrapper">
+            <table class="sheet-table" id="sheet-table">
+              <thead id="sheet-thead"></thead>
+              <tbody id="sheet-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ── Panel: File Upload ── -->
+        <div id="panel-upload" class="tab-panel">
+          <div class="upload-zone" id="upload-zone">
+            <div class="upload-icon">📂</div>
+            <p class="upload-title">.xlsx 또는 .csv 파일을 여기에 끌어다 놓으세요.</p>
+            <p class="upload-title">※ 정해진 데이터 형식에 맞춰 작성된 파일만 업로드해 주세요.</p>
+            <p class="upload-sub">또는</p>
+            <label class="btn-primary btn-sm" for="file-input" style="cursor:pointer">파일 선택</label>
+            <input type="file" id="file-input" accept=".xlsx,.xls,.csv" hidden />
+          </div>
+          <div class="upload-preview" id="upload-preview" style="display:none">
+            <div class="preview-info">
+              <span class="preview-icon">✅</span>
+              <div style="flex:1">
+                <p class="preview-name" id="preview-name"></p>
+                <p class="preview-count" id="preview-count"></p>
+              </div>
+              <button class="btn-ghost btn-sm" id="btn-remove-file">제거</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Start button -->
+        <div class="input-footer">
+          <button class="btn-primary btn-lg" id="btn-start" disabled>테스트 시작 →</button>
+          <p class="word-count-label" id="word-count-label"></p>
+        </div>
+
+      </main>
+    </div><!-- /#view-input -->
+
+
+    <!-- ================================================
+       VIEW : SETTINGS
+  ================================================= -->
+    <div id="view-settings" class="view">
+      <header class="settings-header">
+        <button class="btn-back" id="btn-back-settings">← 돌아가기</button>
+        <h1 class="view-title">테스트 설정</h1>
+        <div style="width:80px"></div><!-- spacer -->
+      </header>
+
+      <main class="settings-main">
+
+        <div class="settings-card">
+          <h3 class="settings-section-title">🔊 TTS 발음</h3>
+          <div class="setting-row">
+            <div>
+              <p class="setting-label">카드 등장 시 자동 발음</p>
+              <p class="setting-desc">단어가 표시될 때 자동으로 발음해줍니다</p>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="tts-enabled" checked />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="setting-row" id="tts-speed-row">
+            <p class="setting-label">재생 속도</p>
+            <div class="speed-btns">
+              <button class="speed-btn" data-rate="0.5">0.5×</button>
+              <button class="speed-btn active" data-rate="1">1.0×</button>
+              <button class="speed-btn" data-rate="1.5">1.5×</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <h3 class="settings-section-title">🃏 카드 설정</h3>
+          <div class="setting-row">
+            <div>
+              <p class="setting-label">카드 수</p>
+              <p class="setting-desc">총 <span id="total-words-count">0</span>개 단어</p>
+            </div>
+            <div class="card-count-options">
+              <label class="radio-option">
+                <input type="radio" name="card-count" value="all" checked /> 전체
+              </label>
+              <label class="radio-option">
+                <input type="radio" name="card-count" value="custom" /> 직접 입력
+              </label>
+              <input type="number" id="custom-count" class="count-input" value="20" min="1" style="display:none" />
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-footer">
+          <button class="btn-primary btn-lg" id="btn-go-test">⚡ 테스트 시작</button>
+        </div>
+
+      </main>
+    </div><!-- /#view-settings -->
+
+
+    <!-- ================================================
+       VIEW : TEST
+  ================================================= -->
+    <div id="view-test" class="view">
+      <header class="test-header">
+        <button class="btn-back" id="btn-back-test">⏹ 테스트 종료</button>
+        <div class="test-progress-info">
+          <span id="test-counter">1 / 20</span>
+          <div class="wrong-badge" id="wrong-badge">
+            📝 <span id="wrong-count">0</span>
+          </div>
+        </div>
+      </header>
+
+      <div class="progress-bar-wrap">
+        <div class="progress-bar" id="progress-bar" style="width:0%"></div>
+      </div>
+
+      <main class="test-main">
+
+        <!-- Flashcard -->
+        <div class="card-container" id="card-container">
+          <div class="card-inner" id="card-inner">
+
+            <!-- Front -->
+            <div class="card-face card-front">
+              <div class="card-lang-badge" id="card-lang-badge">영어</div>
+              <div class="card-word" id="card-word">apple</div>
+              <div class="pinyin-hint" id="pinyin-hint"></div>
+              <div class="card-front-btns">
+                <button class="tts-btn" id="tts-replay-btn">🔊 다시 듣기</button>
+                <button class="pinyin-peek-btn" id="pinyin-peek-btn" style="display:none">👁 발음 보기</button>
+              </div>
+            </div>
+
+            <!-- Back -->
+            <div class="card-face card-back">
+              <div class="card-back-inner">
+                <div class="back-section">
+                  <div class="back-section-label">정답</div>
+                  <div class="answer-data" id="answer-data"></div>
+                </div>
+                <div class="back-divider"></div>
+                <div class="back-section">
+                  <div class="back-section-label">내 답안</div>
+                  <div class="user-answer-text" id="user-answer-display"></div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Input area (shown before flip) -->
+        <div class="answer-input-area" id="answer-input-area">
+          <input type="text" id="answer-input" class="answer-input" placeholder="뜻을 입력하세요 (선택사항)…" autocomplete="off"
+            spellcheck="false" />
+          <button class="btn-check" id="btn-check">확인하기 ↩</button>
+        </div>
+
+        <!-- Action area (shown after flip) -->
+        <div class="action-area" id="action-area" style="display:none">
+          <button class="btn-wrong-note" id="btn-wrong-note">📝 오답노트 추가</button>
+          <button class="btn-next" id="btn-next">다음 단어 →</button>
+        </div>
+
+      </main>
+    </div><!-- /#view-test -->
+
+
+    <!-- ================================================
+       VIEW : RESULTS
+  ================================================= -->
+    <div id="view-results" class="view">
+      <header class="app-header">
+        <div class="logo">
+          <span class="logo-icon">⚡</span>
+          <span class="logo-text">WordFlash</span>
+        </div>
+      </header>
+
+      <main class="results-main">
+
+        <div class="results-hero">
+          <h1 class="results-title" id="results-title">테스트 완료! 🎉</h1>
+          <div class="results-stats">
+            <div class="stat-card">
+              <div class="stat-num" id="stat-total">0</div>
+              <div class="stat-label">전체 카드</div>
+            </div>
+            <div class="stat-card accent">
+              <div class="stat-num" id="stat-wrong">0</div>
+              <div class="stat-label">오답노트 추가</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="wrong-notes-section">
+          <div class="section-header">
+            <h2 class="section-title">📝 오답노트</h2>
+            <button class="btn-download" id="btn-download" disabled>📥 엑셀 다운로드</button>
+          </div>
+          <div class="wrong-notes-table-wrap">
+            <p class="no-wrong-notes" id="no-wrong-notes">오답노트에 추가된 단어가 없습니다 👏</p>
+            <table class="wrong-notes-table" id="wrong-notes-table" style="display:none">
+              <thead id="wrong-notes-thead"></thead>
+              <tbody id="wrong-notes-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="results-footer">
+          <button class="btn-ghost btn-lg" id="btn-restart">🔄 같은 단어로 다시</button>
+          <button class="btn-primary btn-lg" id="btn-home">🏠 처음으로</button>
+        </div>
+
+      </main>
+    </div><!-- /#view-results -->
+
+  </div><!-- /#app -->
+
+  <script src="parser.js"></script>
+  <script src="spreadsheet.js"></script>
+  <script src="flashcard.js"></script>
+  <script src="app.js"></script>
+</body>
+
+</html>
